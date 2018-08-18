@@ -1,0 +1,106 @@
+---
+title: "Coursera Practical Machine Learning Project Write-up"
+author: Rishav Ghosh
+output: html_notebook
+---
+
+## Introduction  
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har.
+
+## Preprocessing of data  
+```{r}
+
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(corrplot)
+```
+
+
+### Reading the Data
+
+```{r}
+train.Raw <- read.csv("/Users/rishavghosh/Downloads/pml-training.csv")
+test.Raw <- read.csv("/Users/rishavghosh/Downloads/pml-testing.csv")
+dim(train.Raw)
+dim(test.Raw)
+```
+The training data set has 19622 observations and 160 variables whereas the testing data set has 20 observations and 160 variables.
+
+### Data Cleaning
+
+Upon observation of the datasets we see a lot of missing data("NA"). Through this step we would be cleaning the data sets
+
+```{r}
+sum(complete.cases(trainRaw))
+train.Raw <- train.Raw[, colSums(is.na(train.Raw)) == 0]
+test.Raw <- test.Raw[, colSums(is.na(test.Raw)) == 0]
+```
+
+```{r}
+classe <- train.Raw$classe
+train.Remove <- grepl("^X|timestamp|window", names(train.Raw))
+train.Raw <- train.Raw[, !train.Remove]
+train.Cleaned <- train.Raw[, sapply(train.Raw, is.numeric)]
+train.Cleaned$classe <- classe
+test.Remove <- grepl("^X|timestamp|window", names(test.Raw))
+test.Raw <- test.Raw[, !test.Remove]
+test.Cleaned <- test.Raw[, sapply(test.Raw, is.numeric)]
+dim(train.Raw)
+dim(test.Raw)
+```
+
+The cleaned training data set now consists of 19622 observations and 87 variables, while the testing data set contains 20 observations and 54 variables.
+
+### Data division 
+The cleaned training set is divided into a pure training data set (70%) and a validation data set (30%). We will use the validation data set to conduct cross validation in future steps.  
+
+```{r}
+set.seed(22519) 
+in.Train <- createDataPartition(train.Cleaned$classe, p=0.70, list=F)
+train.Data <- train.Cleaned[in.Train, ]
+test.Data <- train.Cleaned[-in.Train, ]
+```
+
+## Modeling
+Random forest predictive algorithm is used for activity recognition. 5-fold cross validation check would be used during application.
+
+```{r}
+ctrl <- trainControl(method="cv", 5)
+model <- train(classe~., data=train.Data, method="rf", trControl=ctrl,ntree=50)
+model
+```
+Based on the predictive model, we check the accuracy of the model on the basis of the validation set. 
+
+```{r}
+predict.model <- predict(model, test.Data)
+confusionMatrix(test.Data$classe, predict.model)
+```
+
+The accuracy of the model is 99.29% 
+
+## Prediction for Testing Data Set
+
+```{r}
+result <- predict(model, test.Cleaned[, -length(names(test.Cleaned))])
+```
+
+#Figures
+
+**Correlation Matrix**
+
+```{r}
+corrPlot <- cor(train.Data[, -length(names(train.Data))])
+corrplot(corrPlot, method="color")
+```
+
+**Decision Tree**
+
+```{r}
+treeModel <- rpart(classe ~ ., data=train.Data, method="class")
+prp(treeModel) 
+```
+
