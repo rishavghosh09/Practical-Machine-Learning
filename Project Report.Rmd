@@ -88,7 +88,7 @@ The accuracy of the model is 99.29%
 result <- predict(model, test.Cleaned[, -length(names(test.Cleaned))])
 ```
 
-#Figures
+## Figures
 
 **Correlation Matrix**
 
